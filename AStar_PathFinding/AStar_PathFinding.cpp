@@ -1,4 +1,8 @@
-﻿#include "Map.h"
+﻿#include <windows.h>
+#include <vector>
+#include "resource1.h"
+#include "SettingsDialog.h"
+#include "Map.h"
 #include "MapGenerator.h"
 #include "Renderer.h"
 #include "PathFinder.h"
@@ -17,7 +21,7 @@ WCHAR szWindowClass[MAX_LOADSTRING];            // 기본 창 클래스 이름�
 
 // 이 코드 모듈에 포함된 함수의 선언을 전달합니다:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
-BOOL                InitInstance(HINSTANCE, int);
+BOOL                InitInstance(HINSTANCE, int, AppController* p);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
@@ -35,12 +39,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     LoadStringW(hInstance, IDC_ASTARPATHFINDING, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
+    // 앱 컨트롤러 생성
+    AppController* p = new AppController;
+
+
     // 애플리케이션 초기화를 수행합니다:
-    if (!InitInstance (hInstance, nCmdShow))
+    if (!InitInstance (hInstance, nCmdShow, p))
     {
         return FALSE;
     }
-
+    
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_ASTARPATHFINDING));
 
     MSG msg;
@@ -55,6 +63,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
     }
 
+    // 앱 컨트롤러 객체 삭제
+    delete p;
     return (int) msg.wParam;
 }
 
@@ -79,15 +89,13 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     return RegisterClassExW(&wcex);
 }
 
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
+BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, AppController* pController)
 {
-    // AppController 객체 생성해서 포인터 윈도우에 저장하기
-    AppController* p = new AppController;
-
    hInst = hInstance; // 인스턴스 핸들을 전역 변수에 저장합니다.
 
+   // 윈도우 생성 시 앱 컨트롤러 객체 포인터 저장
    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, p);
+      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, pController);
 
    if (!hWnd)
    {
@@ -102,20 +110,30 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    AppController* pController = (AppController*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+    AppController* pController = nullptr;
 
     switch (message)
     {
     case WM_CREATE:
     {
+        // CreateWindow 시 전달한 pController를 cs의 멤버 변수에서 가져와서 SetWindowLongPtr을 통해 저장
+        CREATESTRUCT* cs = (CREATESTRUCT*)lParam;
+        AppController* pController = (AppController*)cs->lpCreateParams;
 
+        SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)pController);
+
+
+        // 리소스에 있는 다이얼로그 템플릿 가지고 실제 다이얼로그 만들어서 띄우고 다이얼로그 프로시저 호출될 수 있게 하는 함수
+        // 이 함수 안에서 다이얼로그 생성 및 SettingsDlgProc을 호출함. 메세지 루프를 돌리면서 SettingsDlgProc이 메세지 처리하다가
+        // EndDialog가 호출되면 메세지 루프가 끝나고 DialogBoxParam이 리턴함.
+        DialogBoxParam(hInst, MAKEINTRESOURCE(IDD_SETTINGS), hWnd, SettingsDlgProc,(LPARAM)pController);
     }
     break;
 
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
-            // 메뉴 선택을 구문 분석합니다:
+
             switch (wmId)
             {
             case IDM_ABOUT:
@@ -129,8 +147,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
+
     case WM_PAINT:
         {
+            pController = (AppController*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
 
@@ -140,13 +160,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
+
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
     return 0;
 }
 
-// 정보 대화 상자의 메시지 처리기입니다.
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     UNREFERENCED_PARAMETER(lParam);
