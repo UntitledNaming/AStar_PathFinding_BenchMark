@@ -17,7 +17,9 @@ Renderer::~Renderer()
 
 	// 펜, 브러시 제거
 	DeleteObject(m_gridPen);
-	DeleteObject(m_tileBrush);
+	DeleteObject(m_wallBrush);
+	DeleteObject(m_startBrush);
+	DeleteObject(m_goalBrush);
 	DeleteObject(m_pathPen);
 }
 
@@ -27,6 +29,8 @@ void Renderer::Init(HWND hWnd)
 	GetClientRect(hWnd, &m_rc);
 
 	m_gridSize = 16;
+	m_offsetX = 0;
+	m_offsetY = 0;
 	m_bitMap = CreateCompatibleBitmap(hdc, m_rc.right, m_rc.bottom);
 	m_memDC = CreateCompatibleDC(hdc);
 	ReleaseDC(hWnd, hdc); // hdc os에게 반납
@@ -37,7 +41,9 @@ void Renderer::Init(HWND hWnd)
 	// 펜 및 브러시 생성
 	m_gridPen = CreatePen(PS_SOLID, 1, RGB(200, 200, 200));
 	m_pathPen = CreatePen(PS_SOLID, 0, RGB(255, 0, 0));
-	m_tileBrush = CreateSolidBrush((RGB(100, 100, 100)));
+	m_wallBrush = CreateSolidBrush((RGB(100, 100, 100)));
+	m_startBrush = CreateSolidBrush((RGB(0, 255, 0)));
+	m_goalBrush = CreateSolidBrush((RGB(0, 0, 255)));
 	
 }
 
@@ -57,31 +63,35 @@ void Renderer::Render(HWND hWnd, const Map& map)
 
 void Renderer::RenderPen(HDC memdc, const Map& map)
 {
-
-	int iX = 0;
-	int iY = 0;
 	HPEN hOldPen = (HPEN)SelectObject(memdc, m_gridPen);
 
-	for (int iCntW = 0; iCntW <= map.GetWidth(); iCntW++)
+	int w = map.GetWidth();
+	int h = map.GetHeight();
+	int tileWPixel = w * m_gridSize;
+	int tileHPixel = h * m_gridSize;
+
+	// 타일 맵의 가로 타일 갯수 만큼 세로선 긋기
+	for (int tx = 0; tx <= w; tx++)
 	{
-		// 펜을 (iX, 0) 으로 이동
-		MoveToEx(memdc, iX, 0, NULL);
+		int cx = m_offsetX + tx * m_gridSize;
+		int y0 = m_offsetY;
+		int y1 = m_offsetY + tileHPixel;
 
-		// 펜으로 (iX, 0) 에서 (iX, Height * gridSize)로 줄 긋기(세로 1줄 그리기)
-		LineTo(memdc, iX, map.GetHeight() * m_gridSize);
-
-		// iX를 타일 1칸 크기 만큼 증가 시키기
-		iX += m_gridSize;
+		MoveToEx(m_memDC, cx, y0, NULL);
+		LineTo(memdc, cx, y1);
 	}
 
-	for (int iCntH = 0; iCntH <= map.GetHeight(); iCntH++)
+	// 타일 맵의 세로 타일 갯수 만큼 가로선 긋기
+	for (int ty = 0; ty <= h; ty++)
 	{
-		MoveToEx(memdc, 0, iY, NULL);
-		LineTo(memdc, map.GetWidth() * m_gridSize, iY);
-		iY += m_gridSize;
+		int cy = m_offsetY + ty * m_gridSize;
+		int x0 = m_offsetX;
+		int x1 = m_offsetX + tileWPixel;
+
+		MoveToEx(m_memDC, x0, cy, NULL);
+		LineTo(m_memDC, x1, cy);
 	}
 
-	SelectObject(memdc, hOldPen);
 
 	// todo : 경로 줄 그리기
 }

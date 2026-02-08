@@ -26,7 +26,7 @@ public:
 
 	// 객체 사용 핸들러 
 	void OnPaint(HWND hWnd);
-	void OnMouseWheel(HWND hwnd, int wheelDelta, int mouseX, int mouseY);
+	void OnMouseWheel(HWND hwnd, int wheelDelta, int clientX, int clientY);
 	void OnLButtonDown();
 
 private:

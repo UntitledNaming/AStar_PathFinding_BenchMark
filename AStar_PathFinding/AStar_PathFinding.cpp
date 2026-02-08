@@ -1,5 +1,6 @@
 ﻿#include <windows.h>
 #include <vector>
+#include <windowsx.h>
 #include "resource1.h"
 #include "SettingsDialog.h"
 #include "Map.h"
@@ -127,6 +128,31 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         // 이 함수 안에서 다이얼로그 생성 및 SettingsDlgProc을 호출함. 메세지 루프를 돌리면서 SettingsDlgProc이 메세지 처리하다가
         // EndDialog가 호출되면 메세지 루프가 끝나고 DialogBoxParam이 리턴함.
         DialogBoxParam(hInst, MAKEINTRESOURCE(IDD_SETTINGS), hWnd, SettingsDlgProc, (LPARAM)hWnd);
+    }
+    break;
+    
+    // lParam : 클라이언트 좌표(윈도우 클라이언트 영역 좌측 상단 0,0 기준)
+    case WM_LBUTTONDOWN:
+    {
+
+    }
+    break;
+
+    // lParam : 스크린 좌표(모니터 좌측 상단 0,0 기준)
+    case WM_MOUSEWHEEL:
+    {
+        pController = (AppController*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+
+        // 마우스 휠을 작동했을 때 해당 마우스 위치를 기준으로 타일이 확대 및 축소되어서 wall, 경로, 시작정, 종점 등이 보이도록 할 것임.
+        // 마우스 휠을 작동했을 때 좌표가 스크린 좌표이므로 이를 클라이언트 좌표로 변환해야 함.
+        // 기존 렌더링 방식 : 클라 좌표 0,0 부터 width, height 만큼 gridSize 크기의 타일을 그리고 클라 영역 좌표 0,0 부터 출력함.
+        // 변경 렌더링 방식 : 마우스 위치에 있는 타일 좌표를 기준으로 함.
+        int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+
+        POINT pt{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+        ScreenToClient(hWnd, &pt);
+
+        pController->OnMouseWheel(hWnd, delta, pt.x, pt.y);
     }
     break;
 
